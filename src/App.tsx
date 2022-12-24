@@ -1,58 +1,74 @@
-import React from 'react';
-import logo from './logo.svg';
-import { Counter } from './features/counter/Counter';
-import './App.css';
+import { Box, CircularProgress, Container, Stack, TextField, Typography } from '@mui/material';
+import { useEffect } from 'react';
+import Header from './components/Header';
+import Onboarding from './components/Onboarding';
+import EditProfile from './components/EditProfile';
+import { WithFirebaseApiProps, withFirebaseApi } from './Firebase';
+import { useAppDispatch, useAppSelector } from './redux/hooks';
+import { RootState } from './redux/store';
+import { handleUserChange } from './redux/userSlice';
 
-function App() {
+const isLoadingState = (state: RootState): boolean => {
+  return state.user.userId === undefined;
+};
+
+const Body = () => {
+  const userId = useAppSelector((state: RootState) => state.user.userId);
+  const userInfo = useAppSelector((state: RootState) => state.user.userInfo.value);
+  const userInfoLoadState = useAppSelector((state: RootState) => state.user.userInfo.loadState);
+  if (userId === null) {
+    // logged out user
+    return (<>
+      <Typography>Please Log In</Typography>
+    </>);
+  }
+
+  if (userInfoLoadState === "loading") {
+    return <CircularProgress />;
+  }
+  if (userInfoLoadState === "failed" || userInfo === undefined) {
+    return (<>
+      <Typography>Something failed</Typography>
+    </>);
+  }
+  if (userInfo === null) {
+    return <Onboarding />;
+  }
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <Counter />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <span>
-          <span>Learn </span>
-          <a
-            className="App-link"
-            href="https://reactjs.org/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            React
-          </a>
-          <span>, </span>
-          <a
-            className="App-link"
-            href="https://redux.js.org/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Redux
-          </a>
-          <span>, </span>
-          <a
-            className="App-link"
-            href="https://redux-toolkit.js.org/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Redux Toolkit
-          </a>
-          ,<span> and </span>
-          <a
-            className="App-link"
-            href="https://react-redux.js.org/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            React Redux
-          </a>
-        </span>
-      </header>
-    </div>
+    <>
+      <Typography>{`Welcome ${userInfo.username}`}</Typography>
+      <EditProfile />
+    </>
+  );
+};
+
+const App = (props: WithFirebaseApiProps) => {
+  const isLoading = useAppSelector(isLoadingState);
+  const dispatch = useAppDispatch();
+
+  useEffect(() => {
+    return props.firebaseApi.onAuthStateChanged((user) => {
+      if (user) {
+        dispatch(handleUserChange(props.firebaseApi, user.uid));
+      } else {
+        dispatch(handleUserChange(props.firebaseApi, null));
+      }
+    });
+  }, []);
+
+  if (isLoading) {
+    return <CircularProgress sx={{ margin: "auto" }} />;
+  }
+  return (
+    <>
+      <Header />
+      <Container sx={{ paddingTop: 3 }}>
+        <Box sx={{ margin: "auto" }}>
+          <Body />
+        </Box>
+      </Container>
+    </>
   );
 }
 
-export default App;
+export default withFirebaseApi(App);
